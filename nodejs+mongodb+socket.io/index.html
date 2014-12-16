@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title> Chat </title>
+        <link rel="stylesheet" type="text/css" href="main.css">
+    </head>
+    <body>
+        <div class="chat">
+            <input type="text" class="chat-name" placeholder="Digite seu nome">
+            <div class="chat-messages">
+            </div>
+            <textarea class="chat-textarea" placeholder="Digite sua mensagem"></textarea>
+            <div class="chat-status">
+                Status: <span>aguardando...</span>
+            </div>
+        </div>
+        <script src="//localhost:7001/socket.io/socket.io.js"></script>
+        <script type="text/javascript">
+        (function () {
+            var getEl = function (s) {
+                return document.querySelector(s);
+            },
+            // get elements
+            status = getEl('.chat-status span'),
+            textarea = getEl('.chat-textarea'),
+            chatName = getEl('.chat-name'),
+            messages = getEl('.chat-messages'),
+            defaultStatus = status.textContent,
+            setStatus = function (s) {
+                status.textContent = s;
+                if (s !== defaultStatus) {
+                    var delay = setTimeout(function (){
+                        setStatus(defaultStatus);
+                    },1500);
+                }
+            };
+
+            setStatus('conectando...');
+
+            try {
+                var socket = io.connect("//localhost:7001");
+            } catch (e) {
+                console.log('erro ao conectar socket');
+            }
+
+            if (socket !== undefined) {
+                //escutar por 'receive'
+                socket.on('receive', function (data){
+                    if (data.length) {
+                        for (var i = 0; i < data.length; i++) {
+                            var message = document.createElement('div');
+                                message.setAttribute('class', 'chat-message');
+                                message.textContent = data[i].name+': '+data[i].message;
+                                messages.appendChild(message);
+                                messages.insertBefore(message,messages.firstChild);
+                        }
+                    }
+                });
+                // escutar por 'status'
+                socket.on('status', function (data) {
+                    setStatus((typeof data === 'object') ? data.message : data);
+                    if (data.clear === true) {
+                        textarea.value = '';
+                    }
+                });
+                // utilizar shift+enter para quebrar linha e enter para enviar
+                textarea.addEventListener('keydown', function (event) {
+                        var self = this,
+                            name = chatName.value;
+                        if (event.which === 13 && event.shiftKey === false) {
+                            socket.emit('send', {
+                                name: name,
+                                message:self.value
+                            });
+                            event.preventDefault();
+                        }
+                });
+            }
+        })();
+        </script>
+    </body>
+</html>
